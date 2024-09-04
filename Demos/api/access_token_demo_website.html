@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Inputs</h1>
+
+    <h2>Login Info</h2>
+    Username:
+    <input type="text" id="username" placeholder="Username" />
+    <br />
+    Password:
+    <input type="text" id="password" placeholder="Password" />
+    <br />
+
+    <button onClick="logIn()" id="log-in">Log In</button>
+    <button onClick="logOut()" id="log-out">Log Out</button>
+
+    <h2>User Profile</h2>
+    Age: <input type="number" id="age" placeholder="Age" value="20" />
+    <br />
+    Email:
+    <input type="text" id="email" placeholder="Email" />
+    <br />
+    Roles:
+    <input
+      type="text"
+      id="roles"
+      placeholder="Roles"
+      value="student, teacher"
+    />
+    <br />
+
+    <button onClick="createUserProfile()" id="create-user">
+      Create User Profile
+    </button>
+    <button onClick="updateUserProfile()" id="update-user">
+      Update User Profile
+    </button>
+    <button onClick="getUserProfile()" id="get-user">Get User Profile</button>
+    <button onClick="deleteUser()" id="delete-user">Delete User</button>
+
+    <h2>Device Info</h2>
+    Device Name:
+    <input type="text" id="device-name" placeholder="Device Name" />
+
+    <h2>Grades</h2>
+    Math Grade:
+    <input type="number" id="grades-math" placeholder="Math Grade" value="0" />
+    <br />
+    English Grade:
+    <input
+      type="number"
+      id="grades-english"
+      placeholder="English Grade"
+      value="0"
+    />
+    <br />
+    <button onClick="getUserGrades()" id="get-user-grades">
+      Get User Grades
+    </button>
+    <button onClick="updateUserGrades()" id="update-user-grades">
+      Update User Grades
+    </button>
+    <button onClick="deleteUserGrades()" id="delete-user-grades">
+      Delete User Grades
+    </button>
+
+    <h2>Search Filters</h2>
+    List Limit:
+    <input type="text" id="list-limit" placeholder="List Limit" value="10" />
+
+    <h1>Token</h1>
+
+    Current token:
+    <pre id="token"></pre>
+
+    <button onClick="getCurrentToken()" id="get-token">Get Token</button>
+    <button onClick="listTokens()" id="list-tokens">List Tokens</button>
+    <button onClick="deleteAllOtherTokens()" id="delete-all-other-tokens">
+      Delete All Other Tokens
+    </button>
+
+    <h1>Response</h1>
+    <pre id="response" style="border: 1px"></pre>
+
+    <h1>Error</h1>
+    <pre id="error" style="color: red; border: 1px; border-color: red"></pre>
+
+    <script>
+      const usernameInput = document.getElementById("username");
+      const passwordInput = document.getElementById("password");
+      const ageInput = document.getElementById("age");
+      const emailInput = document.getElementById("email");
+      const deviceNameInput = document.getElementById("device-name");
+      const rolesInput = document.getElementById("roles");
+
+      const mathGradeInput = document.getElementById("grades-math");
+      const englishGradeInput = document.getElementById("grades-english");
+
+      const listLimitInput = document.getElementById("list-limit");
+
+      const tokenDisplay = document.getElementById("token");
+
+      const responseDisplay = document.getElementById("response");
+      const errorDisplay = document.getElementById("error");
+
+      if (localStorage.getItem("token")) {
+        const token = JSON.parse(localStorage.getItem("token"));
+        usernameInput.value = token.username;
+        tokenDisplay.textContent = token.token;
+      }
+
+      // Automatically adds authorization
+      // Prints error messages
+      // Prints the response
+      // Converts response to json
+      function httpRequest(url, method, data = null) {
+        // https://www.w3schools.com/jsref/prop_win_localstorage.asp
+        const token = JSON.parse(localStorage.getItem("token"));
+
+        let authorization = null;
+
+        const requestParams = {
+          method: method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: data ? JSON.stringify(data) : null,
+        };
+
+        if (token) {
+          requestParams.headers["Authorization"] = `Bearer ${token.token}`;
+        }
+
+        // Perform the request and convert the response body to JSON
+        const response = fetch(url, requestParams).then((response) =>
+          response.json()
+        );
+
+        // Print the response
+        return response
+          .then((data) => {
+            // Print to console (ctrl+shift+J to watch)
+            console.log(data);
+            // Update website
+            responseDisplay.textContent = JSON.stringify(data, null, 2);
+            errorDisplay.textContent = "";
+            return data;
+          })
+          .catch((error) => {
+            // Print to console (ctrl+shift+J to watch)
+            console.error("Error:", error);
+            // Update website
+            errorDisplay.textContent = JSON.stringify(error, null, 2);
+            responseDisplay.textContent = "";
+
+            throw error;
+          });
+      }
+
+      function deserializeRoles(roles) {
+        return roles.split(",").map((role) => role.trim());
+      }
+
+      async function createUserProfile() {
+        const username = usernameInput.value;
+        const response = await httpRequest(`/users`, "POST", {
+          username: usernameInput.value,
+          password: passwordInput.value,
+          age: ageInput.value,
+          email: emailInput.value,
+          device_name: deviceNameInput.value,
+          roles: deserializeRoles(rolesInput.value),
+        });
+
+        // https://www.w3schools.com/jsref/prop_win_localstorage.asp
+        localStorage.setItem("token", JSON.stringify(response.access_token));
+
+        tokenDisplay.textContent = response.access_token.token;
+      }
+
+      async function getUserProfile() {
+        const username = usernameInput.value;
+        const res = await httpRequest(`/users/${username}/profile`, "GET");
+
+        usernameInput.value = res.username;
+        ageInput.value = res.age;
+        emailInput.value = res.email;
+      }
+
+      async function updateUserProfile() {
+        const username = usernameInput.value;
+        const res = await httpRequest(`/users/${username}/profile`, "PUT", {
+          username: usernameInput.value,
+          age: ageInput.value,
+          email: emailInput.value,
+        });
+
+        usernameInput.value = res.username;
+        ageInput.value = res.age;
+        emailInput.value = res.email;
+      }
+
+      async function getUserGrades() {
+        const username = usernameInput.value;
+        const res = await httpRequest(`/users/${username}/grades`, "GET");
+
+        mathGradeInput.value = res.math;
+        englishGradeInput.value = res.english;
+      }
+
+      async function updateUserGrades() {
+        const username = usernameInput.value;
+        await httpRequest(`/users/${username}/grades`, "POST", {
+          math: mathGradeInput.value,
+          english: englishGradeInput.value,
+        });
+      }
+
+      async function deleteUserGrades() {
+        const username = usernameInput.value;
+        await httpRequest(`/users/${username}/grades`, "DELETE");
+      }
+
+      async function getToken(token) {
+        const username = token.username;
+        const res = await httpRequest(
+          `/users/${username}/tokens/${token.token}`,
+          "GET"
+        );
+        return res;
+      }
+
+      async function getCurrentToken() {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const res = await getToken(JSON.parse(token));
+          tokenDisplay.textContent = res.token;
+        }
+      }
+
+      async function listTokens() {
+        const username = usernameInput.value;
+        return await httpRequest(
+          `/users/${username}/tokens?limit=${listLimitInput.value}`,
+          "GET"
+        );
+      }
+
+      async function deleteToken(token) {
+        const username = token.username;
+        await httpRequest(`/users/${username}/tokens/${token.token}`, "DELETE");
+      }
+
+      async function deleteUser() {
+        const username = usernameInput.value;
+        await httpRequest(`/users/${username}`, "DELETE");
+        clearToken();
+      }
+
+      function clearToken() {
+        // https://www.w3schools.com/jsref/prop_win_localstorage.asp
+        localStorage.removeItem("token");
+        tokenDisplay.textContent = "Not logged in";
+      }
+
+      async function logOut() {
+        const token = localStorage.getItem("token");
+        await deleteToken(JSON.parse(token));
+        clearToken();
+      }
+
+      async function deleteAllOtherTokens() {
+        const tokens = await listTokens();
+        const currentToken = JSON.parse(localStorage.getItem("token"));
+
+        tokens.tokens.forEach((token) => {
+          if (token.token !== currentToken.token) {
+            deleteToken(token);
+          }
+        });
+      }
+
+      async function logIn() {
+        const username = usernameInput.value;
+        const response = await httpRequest(
+          `/users/${username}/tokens`,
+          "POST",
+          {
+            username: usernameInput.value,
+            password: passwordInput.value,
+          }
+        );
+
+        // https://www.w3schools.com/jsref/prop_win_localstorage.asp
+        localStorage.setItem("token", JSON.stringify(response));
+
+        tokenDisplay.textContent = response.token;
+      }
+    </script>
+  </body>
+</html>

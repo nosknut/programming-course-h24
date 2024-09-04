@@ -1,0 +1,7 @@
+.env
+.vscode/**
+.arduino/**
+public/**
+sqlite_database.db
+spotify_token_data.json
+__pycache__
