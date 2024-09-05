@@ -1,3 +1,5 @@
+# pip install flasgger
+
 import os
 import json
 import logging
@@ -6,15 +8,16 @@ import secrets
 import datetime
 from flask import Flask, request
 from dotenv import load_dotenv
+from flasgger import Swagger
 
 app = Flask(__name__)
+Swagger(app)
 
 env_filename = "access_token_demo.env"
 cwd = os.path.dirname(__file__)
 env_file_path = os.path.join(cwd, env_filename)
 
 load_dotenv(env_file_path)
-
 
 def getenv_or_error(env_var_name):
     value = os.getenv(env_var_name)
@@ -87,6 +90,47 @@ def create_access_token(username, device_name):
 
 @app.route("/users/<username>/tokens", methods=["POST"])
 def login(username):
+    """
+    Checks the user's password and returns an access token.
+    ---
+    tags:
+      - tokens
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: body
+          in: body
+          required: true
+          schema:
+            properties:
+              password:
+                type: string
+                required: true
+                description: The password of the user.
+              device_name:
+                type: string
+                required: true
+                description: The name of the device the user is logging in from.
+    responses:
+        200:
+            description: An access token.
+            schema:
+                id: AccessTokenSchema
+                type: object
+                properties:
+                    username:
+                        type: string
+                    device_name:
+                        type: string
+                    expires:
+                        type: number
+                    token:
+                        type: string
+    """
+    
     # Pull the json data from the request body
     data = request.json
     username = data.get("username")
@@ -113,6 +157,40 @@ def login(username):
 
 @app.route("/users/<username>/tokens", methods=["GET"])
 def list_tokens(username):
+    """
+    Lists the user's access tokens.
+    ---
+    tags:
+      - tokens
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: limit
+          in: query
+          type: integer
+          required: false
+          description: The maximum number of tokens to return.
+    responses:
+        200:
+            description: A list of access tokens.
+            schema:
+                type: object
+                properties:
+                    tokens:
+                        type: array
+                        items:
+                          $ref: '#/definitions/AccessTokenSchema'
+                    count:
+                        type: integer
+                    total_count:
+                        type: integer
+                    limit:
+                        type: integer
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -147,6 +225,32 @@ def list_tokens(username):
 
 @app.route("/users/<username>/tokens/<token>", methods=["DELETE"])
 def delete_access_token(username, token):
+    """
+    Delete an access token (log out).
+    ---
+    tags:
+      - tokens
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: token
+          in: path
+          type: string
+          required: true
+          description: The access token to delete.
+    responses:
+        200:
+            description: A message indicating the token was deleted.
+            schema:
+                type: object
+                properties:
+                    message:
+                        type: string
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -173,6 +277,29 @@ def delete_access_token(username, token):
 
 @app.route("/users/<username>/tokens/<token>", methods=["GET"])
 def get_access_token(username, token):
+    """
+    Gets information about an access token.
+    ---
+    tags:
+      - tokens
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: token
+          in: path
+          type: string
+          required: true
+          description: The access token to get.
+    responses:
+        200:
+            description: An access token.
+            schema:
+                $ref: '#/definitions/AccessTokenSchema'
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -233,6 +360,32 @@ def authorize(request):
 
 @app.route("/users/<username>/profile", methods=["GET"])
 def get_user(username):
+    """
+    Returns the user's profile information.
+    ---
+    tags:
+        - profile
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+    responses:
+        200:
+            description: The user's profile.
+            schema:
+                id: UserProfileSchema
+                type: object
+                properties:
+                    username:
+                        type: string
+                    age:
+                        type: integer
+                    email:
+                        type: string
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -253,6 +406,29 @@ def get_user(username):
 
 @app.route("/users/<username>/profile", methods=["PUT"])
 def update_user(username):
+    """
+    Updates the user's profile information.
+    ---
+    tags:
+      - profile
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/UserProfileSchema'
+    responses:
+        200:
+            description: The updated user profile.
+            schema:
+                $ref: '#/definitions/UserProfileSchema'
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -287,6 +463,30 @@ def has_role(role, username):
 
 @app.route("/users/<username>/grades", methods=["GET"])
 def get_grades(username):
+    """
+    Returns the user's grades.
+    ---
+    tags:
+        - grades
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+    responses:
+        200:
+            description: The user's grades.
+            schema:
+                id: GradesSchema
+                type: object
+                properties:
+                    math:
+                        type: integer
+                    english:
+                        type: integer
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -309,6 +509,29 @@ def get_grades(username):
 
 @app.route("/users/<username>/grades", methods=["POST"])
 def set_grades(username):
+    """
+    Sets the grades for a user.
+    ---
+    tags:
+        - grades
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/GradesSchema'
+    responses:
+        200:
+            description: The updated grades.
+            schema:
+              $ref: '#/definitions/GradesSchema'
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -336,6 +559,27 @@ def set_grades(username):
 
 @app.route("/users/<username>/grades", methods=["DELETE"])
 def delete_grades(username):
+    """
+    Deletes the grades for a user.
+    ---
+    tags:
+        - grades
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+    responses:
+        200:
+            description: A message indicating the grades were deleted.
+            schema:
+                type: object
+                properties:
+                    message:
+                        type: string
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -354,10 +598,64 @@ def delete_grades(username):
     
     return ({"message": "Grades deleted"}, 200)  # Http Status: "200 OK"
 
-
 # create user route
 @app.route("/users", methods=["POST"])
 def create_user():
+    """
+    Creates a new user.
+    ---
+    tags:
+        - users
+    parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            properties:
+              username:
+                  type: string
+                  required: true
+                  description: The username of the user.
+              age:
+                  type: integer
+                  required: true
+                  description: The age of the user.
+              email:
+                  type: string
+                  required: true
+                  description: The email of the user.
+              password:
+                type: string
+                required: true
+                description: The password of the user.
+              roles:
+                type: array
+                required: false
+                description: The roles of the user.
+                items:
+                  type: string
+                  enum:
+                      - teacher
+                      - student
+              device_name:
+                type: string
+                required: true
+                description: The name of the device the user is logging in from.
+    responses:
+        200:
+            description: The created user.
+            schema:
+                type: object
+                properties:
+                    user:
+                        $ref: '#/definitions/UserProfileSchema'
+                                
+                    access_token:
+                        $ref: '#/definitions/AccessTokenSchema'
+                    url:
+                        type: string
+    """
+    
     # Pull the json data from the request body
     data = request.json
     username = data.get("username")
@@ -408,9 +706,29 @@ def create_user():
 
     return (response_payload, 200)
 
-
 @app.route("/users/<username>", methods=["DELETE"])
 def delete_user(username):
+    """
+    Deletes a user.
+    ---
+    tags:
+        - users
+    parameters:
+        - name: username
+          in: path
+          type: string
+          required: true
+          description: The username of the user.
+    responses:
+        200:
+            description: A message indicating the user was deleted.
+            schema:
+                type: object
+                properties:
+                    message:
+                        type: string
+    """
+    
     authorized, authorization_result = authorize(request)
     if not authorized:
         return authorization_result
@@ -436,6 +754,21 @@ def delete_user(username):
 
 @app.route("/database", methods=["DELETE"])
 def clear_database():
+    """
+    Utility endpoint to clear the database. Here to simplify the demo.
+    ---
+    tags:
+        - utility
+    responses:
+        200:
+            description: A message indicating the database was cleared
+            schema:
+                type: object
+                properties:
+                    message:
+                        type: string
+    """
+    
     global database
     database = make_empty_database()
     write_database()
@@ -444,6 +777,18 @@ def clear_database():
 
 @app.route("/")
 def get_website():
+    """
+    Returns the website HTML and JavaScript.
+    ---
+    tags:
+        - website
+    responses:
+        200:
+            description: The website HTML and JavaScript.
+            schema:
+                type: string
+    """
+    
     return open(website_file_path).read()
 
 def host_api():
